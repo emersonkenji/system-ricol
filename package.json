@@ -1,6 +1,6 @@
 {
   "name": "system-ricol",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Pacote de instalação do sistema Ricol para criar ambiente de desenvolvimento local",
   "main": "index.js",
   "bin": {
