@@ -38,7 +38,7 @@ services:
         PHP_IMAGE: <PHP_IMAGE>
         CALLING_USER: <USER_NAME>
         CALLING_UID: 1000
-    image: <PHP_IMAGE>-<USER_NAME>
+    image: <PHP_IMAGE>-laravel-<USER_NAME>
     container_name: <SITE_NAME>-phpfpm
     networks:
       - <SITE_NAME>-net
