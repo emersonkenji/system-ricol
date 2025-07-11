@@ -1,6 +1,6 @@
 # System Ricol CLI
 
-Uma ferramenta de linha de comando para gerenciar projetos WordPress com Docker.
+Uma ferramenta de linha de comando para gerenciar projetos WordPress e laravel com Docker.
 
 ## Instalação
 

@@ -41,9 +41,9 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ricol_global
-      MYSQL_USER: ricol_admin
-      MYSQL_PASSWORD: ${MYSQL_ADMIN_PASSWORD:-ricol_secure_2024}
+      # MYSQL_DATABASE: ricol_global
+      # MYSQL_USER: ricol_admin
+      # MYSQL_PASSWORD: ${MYSQL_ADMIN_PASSWORD:-ricol_secure_2024}
     volumes:
       - ./config/mysql/config.cnf:/etc/mysql/mysql.conf.d/wp-local-docker.cnf:ro
       - mysql_data:/var/lib/mysql
@@ -78,8 +78,8 @@ services:
     environment:
       PMA_HOST: mariadb
       PMA_PORT: 3306
-      PMA_USER: ricol_admin
-      PMA_PASSWORD: ${MYSQL_ADMIN_PASSWORD:-ricol_secure_2024}
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ADMIN_PASSWORD:-root}
       UPLOAD_LIMIT: 512M
       MEMORY_LIMIT: 512M
     networks:
