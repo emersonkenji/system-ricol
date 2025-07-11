@@ -12,7 +12,7 @@ const rl = readline.createInterface({
 
 const config = () => {
   const userDir = require('os').homedir();
-  const sslSourcePath = path.join(__dirname, 'ricol-global-docker-local-ssl');
+  const sslSourcePath = path.join(__dirname, '../../ricol-global-docker-local-ssl');
   const sslDestPath = path.join(userDir, 'ricol-global-docker-local-ssl');
   const meusSitesPath = path.join(userDir, 'meus-sites');
 

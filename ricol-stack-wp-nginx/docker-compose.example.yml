@@ -2,7 +2,7 @@ services:
 
   nginx:
     image: 'nginx:1.25-alpine'
-    container_name: <SITE_NAME>-nginx
+    container_name: meusite-nginx
     expose:
       - '80'
       - '443'
@@ -10,39 +10,39 @@ services:
       - phpfpm
     networks:
       - sr-reverse-proxy
-      - <SITE_NAME>-net
+      - meusite-net
     environment:
-      - NGINX_HOST=<SITE_URL>
-      - SITE_ID=<labels>
+      - NGINX_HOST=meusite.com
+      - SITE_ID=meusite
     volumes:
-      - './laravel:/var/www/html'
+      - './system:/var/www/html'
       - './config/nginx/server.conf:/etc/nginx/conf.d/common/_server.conf:ro'
       - './config/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro'
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=sr-reverse-proxy"
-      - "traefik.http.routers.<labels>.rule=Host(`<SITE_URL>`)"
-      - "traefik.http.routers.<labels>.tls=true"
-      - "traefik.http.routers.<labels>.service=<labels>"
-      - "traefik.http.services.<labels>.loadbalancer.server.port=80"  
-      - "traefik.http.routers.<labels>.middlewares=<labels>-prefix"
-      - "traefik.http.middlewares.<labels>-prefix.stripprefix.prefixes=/<labels>"
+      - "traefik.http.routers.meusite.rule=Host(`meusite.com`)"
+      - "traefik.http.routers.meusite.tls=true"
+      - "traefik.http.routers.meusite.service=meusite"
+      - "traefik.http.services.meusite.loadbalancer.server.port=80"  
+      - "traefik.http.routers.meusite.middlewares=meusite-prefix"
+      - "traefik.http.middlewares.meusite-prefix.stripprefix.prefixes=/meusite"
     
   phpfpm:
     build:
       context: .containers
       dockerfile: php-fpm
       args:
-        PHP_IMAGE: <PHP_IMAGE>
-        CALLING_USER: <USER_NAME>
+        PHP_IMAGE: php:8.2-fpm
+        CALLING_USER: kenji
         CALLING_UID: 1000
-    image: <PHP_IMAGE>-laravel-<USER_NAME>
-    container_name: <SITE_NAME>-phpfpm
+    image: php:8.2-fpm-kenji
+    container_name: meusite-phpfpm
     networks:
-      - <SITE_NAME>-net
+      - meusite-net
       - sr-public_network
     volumes:
-      - './laravel:/var/www/html'
+      - './system:/var/www/html'
       - './config/php-fpm/wp-cli.local.yml:/var/www/.wp-cli/config.yml:ro'
     environment:
       - PHP_OPCACHE_VALIDATE_TIMESTAMPS=1 
@@ -53,8 +53,8 @@ networks:
   sr-reverse-proxy:
     external: true
     name: sr-reverse-proxy
-  <SITE_NAME>-net:
+  meusite-net:
     driver: bridge
   sr-public_network:
     external: true
-    name: sr-public_network
+    name: sr-public_network 

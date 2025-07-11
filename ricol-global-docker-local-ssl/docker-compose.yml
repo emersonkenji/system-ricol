@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   reverse-proxy:
     image: traefik:v2.10
@@ -11,6 +9,7 @@ services:
       # Web
       - 80:80
       - 443:443
+      # Dashboard (protegido por middleware)
       - 8080:8080
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -22,44 +21,135 @@ services:
       - ./certs:/etc/certs:ro
     networks:
       - sr-reverse-proxy
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    environment:
+      - TRAEFIK_LOG_LEVEL=INFO
+      - TRAEFIK_PING=true
+    labels:
+      - "com.ricol.service=reverse-proxy"
+      - "com.ricol.version=2.10"
 
   mariadb:
     image: mariadb:10.6
     container_name: global-mariadb
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ricol_global
+      MYSQL_USER: ricol_admin
+      MYSQL_PASSWORD: ${MYSQL_ADMIN_PASSWORD:-ricol_secure_2024}
     volumes:
       - ./config/mysql/config.cnf:/etc/mysql/mysql.conf.d/wp-local-docker.cnf:ro
       - mysql_data:/var/lib/mysql
+      - ./backups:/backups
     ports:
       - "3306:3306"
     networks:
       sr-reverse-proxy:
       sr-public_network:
         ipv4_address: 10.0.120.10
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "com.ricol.service=database"
+      - "com.ricol.version=10.6"
+    security_opt:
+      - no-new-privileges:true
 
   phpmyadmin:
-    image: phpmyadmin
+    image: phpmyadmin:latest
     container_name: global-phpmyadmin
+    restart: unless-stopped
     ports:
       - 8092:80
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
     environment:
       PMA_HOST: mariadb
+      PMA_PORT: 3306
+      PMA_USER: ricol_admin
+      PMA_PASSWORD: ${MYSQL_ADMIN_PASSWORD:-ricol_secure_2024}
+      UPLOAD_LIMIT: 512M
+      MEMORY_LIMIT: 512M
     networks:
       - sr-public_network
       - sr-reverse-proxy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.ricol.service=phpmyadmin"
+      - "traefik.enable=true"
+      - "traefik.http.routers.phpmyadmin.rule=Host(`phpmyadmin.dev.localhost`)"
+      - "traefik.http.routers.phpmyadmin.tls=true"
+    security_opt:
+      - no-new-privileges:true
+
+  # Serviço de backup automático
+  backup:
+    image: mariadb:10.6
+    container_name: global-backup
+    restart: unless-stopped
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/usr/local/bin/backup.sh:ro
+      - ./scripts/init-backup.sh:/usr/local/bin/init-backup.sh:ro
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mariadb
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 2 * * *}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      TZ: ${TZ:-America/Sao_Paulo}
+      RUN_INITIAL_BACKUP: ${RUN_INITIAL_BACKUP:-false}
+    networks:
+      - sr-public_network
+    command: ["/usr/local/bin/init-backup.sh", "cron", "-f"]
+    healthcheck:
+      test: ["CMD", "pgrep", "cron"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "com.ricol.service=backup"
+      - "com.ricol.version=1.0"
 
 networks:
   sr-reverse-proxy:
     external: true
+    driver: bridge
+    enable_ipv6: false
   sr-public_network:
     external: true
+    driver: bridge
+    enable_ipv6: false
+    ipam:
+      config:
+        - subnet: 10.0.120.0/24
+          gateway: 10.0.120.1
 
 volumes:
   mysql_data:
+    driver: local
+    labels:
+      - "com.ricol.volume=mysql-data"
 
 
 # comando mkcert

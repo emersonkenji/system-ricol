@@ -1,5 +1,3 @@
-version: '3.8'  # Adicionar versão explícita
-
 services:
 
   nginx:

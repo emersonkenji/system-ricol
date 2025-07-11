@@ -1,9 +1,50 @@
-config create:
-  dbhost: mysql
-  dbuser: wordpress
-  dbpass: password
-  extra-php: |
-    define( 'DISALLOW_FILE_EDIT', true );
-    define( 'WP_DEBUG', true );
-    define( 'SAVEQUERIES', true );
-    define( 'EP_HOST', 'http://elasticsearch:9200' );
+# Configuração do WP-CLI para ambiente local
+# Este arquivo é montado no container PHP-FPM
+
+path: /var/www/html
+url: ${NGINX_HOST}
+
+# Configurações de desenvolvimento
+core:
+  install:
+    skip-email: true
+  update:
+    skip-email: true
+
+# Configurações de cache
+cache:
+  dir: /tmp/wp-cli/cache
+
+# Configurações de debug
+debug: false
+
+# Configurações de timeout
+timeout: 300
+
+# Configurações de cores
+color: true
+
+# Configurações de formato de saída
+format: table
+
+# Configurações de plugins
+plugin:
+  install:
+    activate: false
+  update:
+    all: true
+
+# Configurações de temas
+theme:
+  install:
+    activate: false
+  update:
+    all: true
+
+# Configurações de banco de dados
+db:
+  export:
+    add-drop-table: true
+    single-transaction: true
+  import:
+    skip-optimization: false

@@ -11,6 +11,7 @@ const start = require('./src/commands/start');
 const stop = require('./src/commands/stop');
 const create = require('./src/commands/create');
 const deleteProject = require('./src/commands/delete-project');
+const backup = require('./src/commands/backup');
 
 // Configuração do CLI
 yargs
@@ -59,6 +60,11 @@ yargs
     command: 'delete',
     desc: 'Remove um projeto existente',
     handler: deleteProject
+  })
+  .command({
+    command: 'backup',
+    desc: 'Gerencia backups do sistema',
+    handler: backup
   })
   .argv;
 // ```
