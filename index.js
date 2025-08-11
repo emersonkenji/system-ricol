@@ -9,7 +9,9 @@ const globalStart = require('./src/commands/global-start');
 const globalStop = require('./src/commands/global-stop');
 const start = require('./src/commands/start');
 const stop = require('./src/commands/stop');
-const create = require('./src/commands/create');
+// const create = require('./src/commands/create');
+const { create } = require('./src/commands/create');
+
 const deleteProject = require('./src/commands/delete-project');
 const backup = require('./src/commands/backup');
 
@@ -51,11 +53,24 @@ yargs
     desc: 'Para um projeto específico',
     handler: stop
   })
+  // .command({
+  //   command: 'create',
+  //   desc: 'Cria um novo projeto',
+  //   handler: create
+  // })
   .command({
     command: 'create',
     desc: 'Cria um novo projeto',
-    handler: create
+    handler: async () => {
+      try {
+        await create();
+      } catch (error) {
+        console.error('Erro no comando create:', error);
+        process.exit(1);
+      }
+    }
   })
+  
   .command({
     command: 'delete',
     desc: 'Remove um projeto existente',
