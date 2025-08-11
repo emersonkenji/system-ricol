@@ -219,7 +219,7 @@ async function fixLaravelPermissions(projectPath) {
   } catch (error) {
     console.error('\n❌ Erro ao aplicar permissões automaticamente.');
     console.log('\n👉 Para corrigir manualmente, execute o seguinte comando:');
-    console.log(`\nsudo chmod -R 777 "${projectPath}/database" "${projectPath}/storage"`);
+    console.log(`\nsudo chmod -R 777 "${projectPath}/laravel/database" "${projectPath}/laravel/storage"`);
     console.log('\nVocê pode copiar e colar o comando acima no terminal.');
     process.exit(1);
   }
