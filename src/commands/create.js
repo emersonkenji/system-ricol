@@ -204,8 +204,8 @@ async function fixLaravelPermissions(projectPath) {
     const databasePath = path.join(projectPath, 'database');
     const storagePath = path.join(projectPath, 'storage');
 
-    execSync(`chmod -R 777 "${databasePath}"`, { stdio: 'inherit' });
-    execSync(`chmod -R 777 "${storagePath}"`, { stdio: 'inherit' });
+    execSync(`sudo chmod -R 777 "${databasePath}"`, { stdio: 'inherit' });
+    execSync(`sudo chmod -R 777 "${storagePath}"`, { stdio: 'inherit' });
 
     console.log('✅ Permissões aplicadas com sucesso!');
   } catch (error) {
