@@ -11,7 +11,6 @@ const create = async () => {
   const meusSitesPath = path.join(userDir, 'meus-sites');
   const wpTemplatePath = path.join(__dirname, '../../ricol-stack-wp-nginx');
   const laravelTemplatePath = path.join(__dirname, '../../ricol-stack-laravel-nginx');
-  // const validDomains = ['.dev.localhost', '.dev.local', '.dev.test'];
   const validDomains = ['.dev.localhost'];
   const os = require('os');
   const userName = os.userInfo().username;
@@ -47,12 +46,10 @@ const create = async () => {
       {
         type: 'input',
         name: 'projectUrl',
-        // message: 'Digite a URL do projeto (exemplo: meusite.dev.localhost, meusite.dev.local ou meusite.dev.test):',
         message: 'Digite a URL do projeto (exemplo: meusite.dev.localhost):',
         validate: input => {
           if (input.trim() === '') return 'A URL não pode estar vazia';
           if (!validDomains.some(domain => input.endsWith(domain))) {
-            // return 'A URL deve terminar com *.dev.localhost, *.dev.local ou *.dev.test';
             return 'A URL deve terminar com *.dev.localhost';
           }
           return true;
@@ -79,8 +76,6 @@ const create = async () => {
 
     const projectName = projectUrl.replace(/\.(dev.localhost|dev.local|dev.test)$/, '');
     const projectPath = path.join(meusSitesPath, projectName);
-    // console.log(projectPath);
-    //   process.exit(1);
 
     const defaultConfPath = path.join(projectPath, 'config/nginx');
     const composeProjectName = projectName
@@ -92,17 +87,14 @@ const create = async () => {
       console.error(`Projeto ${projectName} já existe em ${meusSitesPath}`);
       process.exit(1);
     }
+    
     const labels = `${composeProjectName}dev`;
-
     const templatePath = projectType === 'wordpress' ? wpTemplatePath : laravelTemplatePath;
 
     console.log('Copiando template...');
-
     execSync(`cp -r "${templatePath}" "${projectPath}"`);
-    execSync(`chmod -R 755 "${projectPath}"`);
 
     if (projectType === 'wordpress') {
-
       const envContent = `SITE_URL=${projectUrl}\nCOMPOSE_PROJECT_NAME=${composeProjectName}`;
       fs.writeFileSync(path.join(projectPath, '.env'), envContent);
 
@@ -125,6 +117,12 @@ const create = async () => {
       let defaultConfContent = fs.readFileSync(defaultConf, 'utf8');
       defaultConfContent = defaultConfContent.replace(/<SITE_URL>/g, projectUrl);
       fs.writeFileSync(defaultConf, defaultConfContent);
+
+      // Corrige permissões do WordPress
+      console.log('Configurando permissões WordPress...');
+      execSync(`chmod -R 775 "${projectPath}"`);
+      execSync(`find "${projectPath}" -type d -exec chmod 755 {} \\;`);
+      execSync(`find "${projectPath}" -type f -exec chmod 644 {} \\;`);
 
       // New WordPress setup steps
       await ensureWPCLI();
@@ -167,6 +165,11 @@ const create = async () => {
       console.log('Configurando projeto Laravel...');
       await configureLaravelProject(projectPath);
       await configureEnv(projectPath, projectUrl, dbName);
+
+      // *** CORREÇÃO DE PERMISSÕES LARAVEL ***
+      console.log('Configurando permissões Laravel...');
+      await fixLaravelPermissions(projectPath, userName);
+
       await bootstrappingProject(projectPath);
     }
 
@@ -182,4 +185,124 @@ const create = async () => {
   }
 };
 
-module.exports = create;
+/**
+ * Corrige permissões do Laravel para funcionar no Docker
+ * @param {string} projectPath - Caminho do projeto
+ * @param {string} userName - Nome do usuário
+ */
+async function fixLaravelPermissions(projectPath, userName) {
+  try {
+    console.log('🔧 Corrigindo permissões do Laravel...');
+
+    // Obter UID e GID do usuário atual
+    const uid = process.getuid ? process.getuid() : 1000;
+    const gid = process.getgid ? process.getgid() : 1000;
+
+    // Criar diretórios necessários se não existirem
+    const requiredDirs = [
+      'storage/app',
+      'storage/app/public',
+      'storage/framework',
+      'storage/framework/cache',
+      'storage/framework/cache/data',
+      'storage/framework/sessions',
+      'storage/framework/views',
+      'storage/logs',
+      'bootstrap/cache'
+    ];
+
+    for (const dir of requiredDirs) {
+      const fullPath = path.join(projectPath, dir);
+      if (!fs.existsSync(fullPath)) {
+        fs.mkdirSync(fullPath, { recursive: true });
+        console.log(`📁 Criado diretório: ${dir}`);
+      }
+    }
+
+    // Aplicar permissões corretas
+    console.log('🔒 Aplicando permissões...');
+    
+    // Permissões gerais do projeto
+    execSync(`chmod -R 755 "${projectPath}"`);
+    
+    // Permissões específicas para storage e bootstrap/cache
+    execSync(`chmod -R 775 "${path.join(projectPath, 'storage')}"`);
+    execSync(`chmod -R 775 "${path.join(projectPath, 'bootstrap', 'cache')}"`);
+    
+    // Definir ownership (se executando como root ou com sudo)
+    try {
+      execSync(`chown -R ${uid}:${gid} "${projectPath}"`);
+      console.log(`👤 Ownership definido para ${uid}:${gid}`);
+    } catch (chownError) {
+      console.log('⚠️ Não foi possível definir ownership (normal se não for root)');
+      
+      // Alternativa: usar chmod mais permissivo
+      execSync(`chmod -R 777 "${path.join(projectPath, 'storage')}"`);
+      execSync(`chmod -R 777 "${path.join(projectPath, 'bootstrap', 'cache')}"`);
+      console.log('🔓 Aplicadas permissões 777 para storage e cache');
+    }
+
+    // Criar arquivo .gitkeep nos diretórios vazios
+    const gitkeepDirs = [
+      'storage/app',
+      'storage/framework/cache/data',
+      'storage/framework/sessions',
+      'storage/framework/views',
+      'storage/logs'
+    ];
+
+    for (const dir of gitkeepDirs) {
+      const gitkeepPath = path.join(projectPath, dir, '.gitkeep');
+      if (!fs.existsSync(gitkeepPath)) {
+        fs.writeFileSync(gitkeepPath, '');
+      }
+    }
+
+    console.log('✅ Permissões Laravel configuradas com sucesso!');
+
+  } catch (error) {
+    console.error('❌ Erro ao configurar permissões:', error.message);
+    
+    // Fallback: permissões mais amplas
+    try {
+      console.log('🔄 Aplicando permissões de fallback...');
+      execSync(`chmod -R 777 "${path.join(projectPath, 'storage')}"`);
+      execSync(`chmod -R 777 "${path.join(projectPath, 'bootstrap', 'cache')}"`);
+      console.log('✅ Permissões de fallback aplicadas');
+    } catch (fallbackError) {
+      console.error('❌ Falha no fallback de permissões:', fallbackError.message);
+      throw error;
+    }
+  }
+}
+
+/**
+ * Função para corrigir permissões de um projeto Laravel existente
+ * @param {string} projectPath - Caminho do projeto
+ */
+async function fixExistingLaravelProject(projectPath) {
+  const userName = require('os').userInfo().username;
+  
+  if (!fs.existsSync(projectPath)) {
+    throw new Error(`Projeto não encontrado: ${projectPath}`);
+  }
+
+  console.log(`🔧 Corrigindo permissões do projeto: ${path.basename(projectPath)}`);
+  await fixLaravelPermissions(projectPath, userName);
+  
+  // Limpar cache existente
+  try {
+    execSync(`rm -rf "${path.join(projectPath, 'storage/framework/views/*')}"`);
+    execSync(`rm -rf "${path.join(projectPath, 'storage/framework/cache/data/*')}"`);
+    execSync(`rm -rf "${path.join(projectPath, 'bootstrap/cache/*')}"`);
+    console.log('🗑️ Cache limpo');
+  } catch (error) {
+    console.log('⚠️ Não foi possível limpar o cache');
+  }
+}
+
+module.exports = { 
+  create: create,
+  fixLaravelPermissions,
+  fixExistingLaravelProject
+};
