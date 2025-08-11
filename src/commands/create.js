@@ -11,7 +11,8 @@ const create = async () => {
   const meusSitesPath = path.join(userDir, 'meus-sites');
   const wpTemplatePath = path.join(__dirname, '../../ricol-stack-wp-nginx');
   const laravelTemplatePath = path.join(__dirname, '../../ricol-stack-laravel-nginx');
-  const validDomains = ['.dev.localhost', '.dev.local', '.dev.test'];
+  // const validDomains = ['.dev.localhost', '.dev.local', '.dev.test'];
+  const validDomains = ['.dev.localhost'];
   const os = require('os');
   const userName = os.userInfo().username;
 
@@ -46,11 +47,13 @@ const create = async () => {
       {
         type: 'input',
         name: 'projectUrl',
-        message: 'Digite a URL do projeto (exemplo: meusite.dev.localhost, meusite.dev.local ou meusite.dev.test):',
+        // message: 'Digite a URL do projeto (exemplo: meusite.dev.localhost, meusite.dev.local ou meusite.dev.test):',
+        message: 'Digite a URL do projeto (exemplo: meusite.dev.localhost):',
         validate: input => {
           if (input.trim() === '') return 'A URL não pode estar vazia';
           if (!validDomains.some(domain => input.endsWith(domain))) {
-            return 'A URL deve terminar com *.dev.localhost, *.dev.local ou *.dev.test';
+            // return 'A URL deve terminar com *.dev.localhost, *.dev.local ou *.dev.test';
+            return 'A URL deve terminar com *.dev.localhost';
           }
           return true;
         }
@@ -63,6 +66,7 @@ const create = async () => {
         name: 'phpVersion',
         message: 'escolha a versão do php?',
         choices: [
+          { name: '8.4', value: 'php:8.4-fpm' },
           { name: '8.3', value: 'php:8.3-fpm' },
           { name: '8.2', value: 'php:8.2-fpm' },
           { name: '8.1', value: 'php:8.1-fpm' },
@@ -126,7 +130,10 @@ const create = async () => {
       await ensureWPCLI();
       await setupWordPress(projectPath, dbName, composeProjectName, projectUrl);
       await createWordpressDatabase(dbName);
+
     } else {
+      const envContent = `SITE_URL=${projectUrl}\nCOMPOSE_PROJECT_NAME=${composeProjectName}`;
+      fs.writeFileSync(path.join(projectPath, '.env'), envContent);
 
       const dbName = `laravel_${composeProjectName}`;
 
@@ -151,10 +158,6 @@ const create = async () => {
       let defaultConfContent = fs.readFileSync(defaultConf, 'utf8');
       defaultConfContent = defaultConfContent.replace(/<SITE_URL>/g, projectUrl);
       fs.writeFileSync(defaultConf, defaultConfContent);
-
-      // Cria a pasta system
-      // const systemPath = path.join(projectPath, 'system');
-      // fs.mkdirSync(systemPath, { recursive: true });
 
       console.log('Criando banco de dados Laravel...');
       // Cria o banco de dados para Laravel

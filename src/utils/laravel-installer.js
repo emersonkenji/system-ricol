@@ -11,12 +11,29 @@ async function configureLaravelProject(projectPath) {
 
     const laravelInstalled = await ensureLaravelInstalled();
 
-    if (!laravelInstalled) {
-        console.error('Não foi possível continuar. Laravel CLI não instalado.');
-        return false;
-    } else {
-        console.log('Laravel CLI já está instalado.');
-    }
+    async () => {
+        // Verificar status atual
+        const status = await checkLaravelVersion();
+        console.log('Status:', status);
+
+        // Garantir que está instalado e atualizado
+        const success = await ensureLaravelInstalled();
+        if (success) {
+            console.log('Pronto para usar Laravel Installer!');
+        } else {
+            console.log('Falha ao configurar Laravel Installer');
+        }
+    };
+    // console.log(`Iniciando a criação do projeto Laravel em ${projectPath}...`);
+    
+    // return false;
+
+    // if (!laravelInstalled) {
+    //     console.error('Não foi possível continuar. Laravel CLI não instalado.');
+    //     return false;
+    // } else {
+    //     console.log('Laravel CLI já está instalado.');
+    // }
 
     const command = constructLaravelCommand('laravel', options);
 
@@ -37,12 +54,8 @@ async function configureLaravelProject(projectPath) {
             stdio: 'inherit'
         });
 
-        // Garantir que o servidor web tenha permissão para escrever
-        // execSync(`chown -R www-data:www-data ${execPermissionsPath}/storage ${execPermissionsPath}/bootstrap/cache`, {
-        //     stdio: 'inherit'
-        // });
-
         console.log('Permissões configuradas com sucesso!');
+
     } catch (error) {
         console.error('Erro ao criar projeto Laravel:', error.message);
         throw error;
@@ -68,18 +81,15 @@ async function bootstrappingProject(projectPath) {
 async function configureEnv(projectPath, projectUrl, dbName) {
     const projectLocale = 'pt_BR';
     const projectTimezone = 'America/Sao_Paulo';
-    // const projectKey = execSync('php artisan key:generate --show').toString().trim();
     const envPath = path.join(projectPath, 'laravel', '.env');
     console.log('envPath', envPath);
-    // console.log('key', projectKey);
-    // const dbName = `laravel_${path.basename(projectPath).toLowerCase().replace(/\./g, '_')}`;
     
     if (fs.existsSync(envPath)) {
       let envContent = fs.readFileSync(envPath, 'utf8');
   
       // Configurações de banco de dados
       envContent = envContent
-        .replace(/DB_CONNECTION=.*/, `DB_CONNECTION=mysql`)
+        // .replace(/DB_CONNECTION=.*/, `DB_CONNECTION=mysql`)
         .replace(/DB_HOST=.*/, `DB_HOST=10.0.120.10`)
         .replace(/DB_PORT=.*/, `DB_PORT=3306`)
         .replace(/DB_DATABASE=.*/, `DB_DATABASE=${dbName}`)
@@ -89,7 +99,7 @@ async function configureEnv(projectPath, projectUrl, dbName) {
       // Configurações adicionais
       envContent = envContent
         .replace(/APP_URL=.*/, `APP_URL=https://${projectUrl}`)
-        .replace(/APP_ENV=.*/, `APP_ENV=local`);
+        // .replace(/APP_ENV=.*/, `APP_ENV=local`);
   
       fs.writeFileSync(envPath, envContent);
     }
@@ -98,7 +108,7 @@ async function configureEnv(projectPath, projectUrl, dbName) {
 async function getProjectOptions() {
     const options = [];
 
-    // Starter Kit Selection
+    // Starter Kit Selection (Laravel Installer novo)
     const { starterKit } = await inquirer.prompt([
         {
             type: 'list',
@@ -106,74 +116,43 @@ async function getProjectOptions() {
             message: 'Escolha o starter kit:',
             choices: [
                 { name: 'Nenhum', value: 'none' },
-                { name: 'Breeze', value: 'breeze' },
-                { name: 'Jetstream', value: 'jetstream' }
+                { name: 'Livewire (Breeze)', value: 'livewire' },
+                { name: 'Vue (Breeze)', value: 'vue' },
+                { name: 'React (Breeze)', value: 'react' },
+                { name: 'Jetstream (instalar depois)', value: 'jetstream' }
             ]
         }
     ]);
 
-    if (starterKit === 'breeze') {
-        const { stack } = await inquirer.prompt([
-            {
-                type: 'list',
-                name: 'stack',
-                message: 'Escolha a stack do Breeze:',
-                choices: ['blade', 'react', 'vue', 'inertia']
-            }
-        ]);
-        options.push('--breeze', `--stack=${stack}`);
+    if (starterKit === 'livewire') {
+        options.push('--livewire');
 
-        const { typescript } = await inquirer.prompt([
+        const { classComponents } = await inquirer.prompt([
             {
                 type: 'confirm',
-                name: 'typescript',
-                message: 'Usar TypeScript?'
+                name: 'classComponents',
+                message: 'Usar Livewire Class Components?'
             }
         ]);
-        if (typescript) options.push('--typescript');
-
-        const { eslint } = await inquirer.prompt([
-            {
-                type: 'confirm',
-                name: 'eslint',
-                message: 'Incluir ESLint e Prettier?'
-            }
-        ]);
-        if (eslint) options.push('--eslint');
+        if (classComponents) options.push('--livewire-class-components');
     }
 
+    if (starterKit === 'vue') {
+        options.push('--vue');
+    }
+
+    if (starterKit === 'react') {
+        options.push('--react');
+    }
+
+    // Jetstream é instalado depois
     if (starterKit === 'jetstream') {
-        const { stack } = await inquirer.prompt([
-            {
-                type: 'list',
-                name: 'stack',
-                message: 'Escolha a stack do Jetstream:',
-                choices: ['livewire', 'inertia']
-            }
-        ]);
-        options.push('--jet', `--stack=${stack}`);
-
-        const additionalOptions = await inquirer.prompt([
-            {
-                type: 'confirm',
-                name: 'api',
-                message: 'Incluir suporte para API?'
-            },
-            {
-                type: 'confirm',
-                name: 'teams',
-                message: 'Incluir suporte para times?'
-            },
-            {
-                type: 'confirm',
-                name: 'verification',
-                message: 'Incluir verificação de e-mail?'
-            }
-        ]);
-
-        if (additionalOptions.api) options.push('--api');
-        if (additionalOptions.teams) options.push('--teams');
-        if (additionalOptions.verification) options.push('--verification');
+        console.log(`
+            ℹ O Jetstream não é instalado via "laravel new".
+            Após criar o projeto, execute:
+            composer require laravel/jetstream
+            php artisan jetstream:install livewire --teams --verification
+        `);
     }
 
     // Database selection
@@ -222,6 +201,7 @@ async function getProjectOptions() {
 
     return options;
 }
+
 
 function constructLaravelCommand(projectName, options) {
     console.log(`${projectName} ${options.join(' ')} --no-interaction`);
