@@ -167,20 +167,23 @@ const create = async () => {
       await configureEnv(projectPath, projectUrl, dbName);
 
       console.log('Configurando permissões Laravel...');
-      execSync(`chmod -R 775 "${projectPath}"`);
-      execSync(`chmod -R 777 "${path.join(projectPath, 'database')}" "${path.join(projectPath, 'storage')}"`);
+      execSync(`chmod -R 775 "${projectPath}/laravel"`);
+      // execSync(`chmod -R 777 "${path.join(projectPath,
+      //  'database')}" "${path.join(projectPath, 'storage')}"`);
       execSync(`find "${projectPath}" -type d -exec chmod 755 {} \\;`);
       execSync(`find "${projectPath}" -type f -exec chmod 644 {} \\;`);
+
+      execSync(`chmod -R 777 "${projectPath}/laravel/database" "${projectPath}/laravel/storage"`);
 
       // *** CORREÇÃO DE PERMISSÕES LARAVEL ***
       // console.log('Configurando permissões Laravel...');
       // await fixLaravelPermissions(projectPath);
 
       // *** CORREÇÃO ESPECÍFICA PARA SQLITE ***
-      if (await isSQLiteProject(projectPath)) {
-        console.log('🔧 Detectado SQLite, aplicando correções específicas...');
-        await fixSQLiteSpecific(projectPath);
-      }
+      // if (await isSQLiteProject(projectPath)) {
+      //   console.log('🔧 Detectado SQLite, aplicando correções específicas...');
+      //   await fixSQLiteSpecific(projectPath);
+      // }
 
       await bootstrappingProject(projectPath);
     }
@@ -192,15 +195,15 @@ const create = async () => {
     await startContainers(projectPath, projectUrl, composeProjectName, projectType);
 
     // Configura permissões dentro do container
-    if (projectType === 'laravel') {
-      console.log('🔧 Configurando permissões dentro do container...');
-      try {
-        execSync(`docker-compose -f "${path.join(projectPath, 'docker-compose.yml')}" exec -T phpfpm chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache`, { stdio: 'inherit' });
-        console.log('✅ Permissões do container configuradas com sucesso!');
-      } catch (error) {
-        console.warn('⚠️ Aviso: Não foi possível configurar as permissões no container. Isso pode ser feito manualmente mais tarde.');
-      }
-    }
+    // if (projectType === 'laravel') {
+    //   console.log('🔧 Configurando permissões dentro do container...');
+    //   try {
+    //     execSync(`docker-compose -f "${path.join(projectPath, 'docker-compose.yml')}" exec -T phpfpm chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache`, { stdio: 'inherit' });
+    //     console.log('✅ Permissões do container configuradas com sucesso!');
+    //   } catch (error) {
+    //     console.warn('⚠️ Aviso: Não foi possível configurar as permissões no container. Isso pode ser feito manualmente mais tarde.');
+    //   }
+    // }
 
   } catch (error) {
     console.error('Erro ao criar projeto:', error.message);

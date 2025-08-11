@@ -50,7 +50,7 @@ async function configureLaravelProject(projectPath) {
         console.log('Configurando permissões para a pasta do Laravel...');
         
         // Definindo permissões para as pastas de storage e cache
-        execSync(`chmod -R 775 ${execPermissionsPath}/storage ${execPermissionsPath}/bootstrap/cache`, {
+        execSync(`chmod -R 777 ${execPermissionsPath}/storage ${execPermissionsPath}/database ${execPermissionsPath}/bootstrap/cache`, {
             stdio: 'inherit'
         });
 
