@@ -170,6 +170,12 @@ const create = async () => {
       console.log('Configurando permissões Laravel...');
       await fixLaravelPermissions(projectPath, userName);
 
+      // *** CORREÇÃO ESPECÍFICA PARA SQLITE ***
+      if (await isSQLiteProject(projectPath)) {
+        console.log('🔧 Detectado SQLite, aplicando correções específicas...');
+        await fixSQLiteSpecific(projectPath);
+      }
+
       await bootstrappingProject(projectPath);
     }
 
@@ -277,32 +283,83 @@ async function fixLaravelPermissions(projectPath, userName) {
 }
 
 /**
- * Função para corrigir permissões de um projeto Laravel existente
+ * Verifica se o projeto usa SQLite
+ * @param {string} projectPath - Caminho do projeto
+ * @returns {Promise<boolean>}
+ */
+async function isSQLiteProject(projectPath) {
+  try {
+    const envPath = path.join(projectPath, '.env');
+    if (!fs.existsSync(envPath)) return false;
+    
+    const envContent = fs.readFileSync(envPath, 'utf8');
+    return envContent.includes('DB_CONNECTION=sqlite') || 
+           envContent.includes('--database=sqlite');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Correções específicas para SQLite
  * @param {string} projectPath - Caminho do projeto
  */
-async function fixExistingLaravelProject(projectPath) {
-  const userName = require('os').userInfo().username;
-  
-  if (!fs.existsSync(projectPath)) {
-    throw new Error(`Projeto não encontrado: ${projectPath}`);
-  }
-
-  console.log(`🔧 Corrigindo permissões do projeto: ${path.basename(projectPath)}`);
-  await fixLaravelPermissions(projectPath, userName);
-  
-  // Limpar cache existente
+async function fixSQLiteSpecific(projectPath) {
   try {
-    execSync(`rm -rf "${path.join(projectPath, 'storage/framework/views/*')}"`);
-    execSync(`rm -rf "${path.join(projectPath, 'storage/framework/cache/data/*')}"`);
-    execSync(`rm -rf "${path.join(projectPath, 'bootstrap/cache/*')}"`);
-    console.log('🗑️ Cache limpo');
+    // Garantir que o arquivo database.sqlite existe
+    const databaseDir = path.join(projectPath, 'database');
+    const sqliteFile = path.join(databaseDir, 'database.sqlite');
+    
+    if (!fs.existsSync(databaseDir)) {
+      fs.mkdirSync(databaseDir, { recursive: true });
+    }
+    
+    if (!fs.existsSync(sqliteFile)) {
+      fs.writeFileSync(sqliteFile, '');
+      console.log('📄 Arquivo database.sqlite criado');
+    }
+    
+    // Permissões específicas para SQLite
+    execSync(`chmod 664 "${sqliteFile}"`);
+    execSync(`chmod 775 "${databaseDir}"`);
+    
+    try {
+      const uid = process.getuid ? process.getuid() : 1000;
+      const gid = process.getgid ? process.getgid() : 1000;
+      execSync(`chown ${uid}:${gid} "${sqliteFile}"`);
+      execSync(`chown ${uid}:${gid} "${databaseDir}"`);
+    } catch {
+      // Fallback para permissões mais amplas
+      execSync(`chmod 666 "${sqliteFile}"`);
+      execSync(`chmod 777 "${databaseDir}"`);
+    }
+    
+    // Configurar .env para SQLite no container
+    const envPath = path.join(projectPath, '.env');
+    if (fs.existsSync(envPath)) {
+      let envContent = fs.readFileSync(envPath, 'utf8');
+      
+      // Garantir que o caminho do SQLite esteja correto para o container
+      if (!envContent.includes('DB_DATABASE=/var/www/html/database/database.sqlite')) {
+        envContent = envContent.replace(
+          /DB_DATABASE=.*/,
+          'DB_DATABASE=/var/www/html/database/database.sqlite'
+        );
+        fs.writeFileSync(envPath, envContent);
+        console.log('📝 Caminho SQLite corrigido no .env');
+      }
+    }
+    
+    console.log('✅ Correções SQLite aplicadas');
+    
   } catch (error) {
-    console.log('⚠️ Não foi possível limpar o cache');
+    console.error('❌ Erro nas correções SQLite:', error.message);
   }
 }
 
 module.exports = { 
   create: create,
   fixLaravelPermissions,
-  fixExistingLaravelProject
+  isSQLiteProject,
+  fixSQLiteSpecific
 };
