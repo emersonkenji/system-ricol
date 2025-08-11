@@ -196,91 +196,108 @@ const create = async () => {
  * @param {string} projectPath - Caminho do projeto
  * @param {string} userName - Nome do usuário
  */
-async function fixLaravelPermissions(projectPath, userName) {
+
+async function fixLaravelPermissions(projectPath) {
   try {
-    console.log('🔧 Corrigindo permissões do Laravel...');
+    console.log('🔧 Aplicando permissões 777 em database e storage...');
 
-    // Obter UID e GID do usuário atual
-    const uid = process.getuid ? process.getuid() : 1000;
-    const gid = process.getgid ? process.getgid() : 1000;
+    const databasePath = path.join(projectPath, 'database');
+    const storagePath = path.join(projectPath, 'storage');
 
-    // Criar diretórios necessários se não existirem
-    const requiredDirs = [
-      'storage/app',
-      'storage/app/public',
-      'storage/framework',
-      'storage/framework/cache',
-      'storage/framework/cache/data',
-      'storage/framework/sessions',
-      'storage/framework/views',
-      'storage/logs',
-      'bootstrap/cache'
-    ];
+    execSync(`chmod -R 777 "${databasePath}"`, { stdio: 'inherit' });
+    execSync(`chmod -R 777 "${storagePath}"`, { stdio: 'inherit' });
 
-    for (const dir of requiredDirs) {
-      const fullPath = path.join(projectPath, dir);
-      if (!fs.existsSync(fullPath)) {
-        fs.mkdirSync(fullPath, { recursive: true });
-        console.log(`📁 Criado diretório: ${dir}`);
-      }
-    }
-
-    // Aplicar permissões corretas
-    console.log('🔒 Aplicando permissões...');
-    
-    // Permissões gerais do projeto
-    execSync(`chmod -R 755 "${projectPath}"`);
-    
-    // Permissões específicas para storage e bootstrap/cache
-    execSync(`chmod -R 775 "${path.join(projectPath, 'storage')}"`);
-    execSync(`chmod -R 775 "${path.join(projectPath, 'bootstrap', 'cache')}"`);
-    
-    // Definir ownership (se executando como root ou com sudo)
-    try {
-      execSync(`chown -R ${uid}:${gid} "${projectPath}"`);
-      console.log(`👤 Ownership definido para ${uid}:${gid}`);
-    } catch (chownError) {
-      console.log('⚠️ Não foi possível definir ownership (normal se não for root)');
-      
-      // Alternativa: usar chmod mais permissivo
-      execSync(`chmod -R 777 "${path.join(projectPath, 'storage')}"`);
-      execSync(`chmod -R 777 "${path.join(projectPath, 'bootstrap', 'cache')}"`);
-      console.log('🔓 Aplicadas permissões 777 para storage e cache');
-    }
-
-    // Criar arquivo .gitkeep nos diretórios vazios
-    const gitkeepDirs = [
-      'storage/app',
-      'storage/framework/cache/data',
-      'storage/framework/sessions',
-      'storage/framework/views',
-      'storage/logs'
-    ];
-
-    for (const dir of gitkeepDirs) {
-      const gitkeepPath = path.join(projectPath, dir, '.gitkeep');
-      if (!fs.existsSync(gitkeepPath)) {
-        fs.writeFileSync(gitkeepPath, '');
-      }
-    }
-
-    console.log('✅ Permissões Laravel configuradas com sucesso!');
-
+    console.log('✅ Permissões aplicadas com sucesso!');
   } catch (error) {
-    console.error('❌ Erro ao configurar permissões:', error.message);
-    
-    // Fallback: permissões mais amplas
-    try {
-      console.log('🔄 Aplicando permissões de fallback...');
-      execSync(`chmod -R 777 "${path.join(projectPath, 'storage')}"`);
-      execSync(`chmod -R 777 "${path.join(projectPath, 'bootstrap', 'cache')}"`);
-      console.log('✅ Permissões de fallback aplicadas');
-    } catch (fallbackError) {
-      console.error('❌ Falha no fallback de permissões:', fallbackError.message);
-      throw error;
-    }
+    console.error('❌ Erro ao aplicar permissões:', error.message);
+    throw error;
   }
 }
+// async function fixLaravelPermissions(projectPath, userName) {
+//   try {
+//     console.log('🔧 Corrigindo permissões do Laravel...');
+
+//     // Obter UID e GID do usuário atual
+//     const uid = process.getuid ? process.getuid() : 1000;
+//     const gid = process.getgid ? process.getgid() : 1000;
+
+//     // Criar diretórios necessários se não existirem
+//     const requiredDirs = [
+//       'storage/app',
+//       'storage/app/public',
+//       'storage/framework',
+//       'storage/framework/cache',
+//       'storage/framework/cache/data',
+//       'storage/framework/sessions',
+//       'storage/framework/views',
+//       'storage/logs',
+//       'bootstrap/cache'
+//     ];
+
+//     for (const dir of requiredDirs) {
+//       const fullPath = path.join(projectPath, dir);
+//       if (!fs.existsSync(fullPath)) {
+//         fs.mkdirSync(fullPath, { recursive: true });
+//         console.log(`📁 Criado diretório: ${dir}`);
+//       }
+//     }
+
+//     // Aplicar permissões corretas
+//     console.log('🔒 Aplicando permissões...');
+    
+//     // Permissões gerais do projeto
+//     execSync(`chmod -R 755 "${projectPath}"`);
+    
+//     // Permissões específicas para storage e bootstrap/cache
+//     execSync(`chmod -R 775 "${path.join(projectPath, 'storage')}"`);
+//     execSync(`chmod -R 775 "${path.join(projectPath, 'bootstrap', 'cache')}"`);
+    
+//     // Definir ownership (se executando como root ou com sudo)
+//     try {
+//       execSync(`chown -R ${uid}:${gid} "${projectPath}"`);
+//       console.log(`👤 Ownership definido para ${uid}:${gid}`);
+//     } catch (chownError) {
+//       console.log('⚠️ Não foi possível definir ownership (normal se não for root)');
+      
+//       // Alternativa: usar chmod mais permissivo
+//       execSync(`chmod -R 777 "${path.join(projectPath, 'storage')}"`);
+//       execSync(`chmod -R 777 "${path.join(projectPath, 'bootstrap', 'cache')}"`);
+//       console.log('🔓 Aplicadas permissões 777 para storage e cache');
+//     }
+
+//     // Criar arquivo .gitkeep nos diretórios vazios
+//     const gitkeepDirs = [
+//       'storage/app',
+//       'storage/framework/cache/data',
+//       'storage/framework/sessions',
+//       'storage/framework/views',
+//       'storage/logs'
+//     ];
+
+//     for (const dir of gitkeepDirs) {
+//       const gitkeepPath = path.join(projectPath, dir, '.gitkeep');
+//       if (!fs.existsSync(gitkeepPath)) {
+//         fs.writeFileSync(gitkeepPath, '');
+//       }
+//     }
+
+//     console.log('✅ Permissões Laravel configuradas com sucesso!');
+
+//   } catch (error) {
+//     console.error('❌ Erro ao configurar permissões:', error.message);
+    
+//     // Fallback: permissões mais amplas
+//     try {
+//       console.log('🔄 Aplicando permissões de fallback...');
+//       execSync(`chmod -R 777 "${path.join(projectPath, 'storage')}"`);
+//       execSync(`chmod -R 777 "${path.join(projectPath, 'bootstrap', 'cache')}"`);
+//       console.log('✅ Permissões de fallback aplicadas');
+//     } catch (fallbackError) {
+//       console.error('❌ Falha no fallback de permissões:', fallbackError.message);
+//       throw error;
+//     }
+//   }
+// }
 
 /**
  * Verifica se o projeto usa SQLite
