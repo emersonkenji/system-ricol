@@ -168,7 +168,7 @@ const create = async () => {
 
       // *** CORREÇÃO DE PERMISSÕES LARAVEL ***
       console.log('Configurando permissões Laravel...');
-      await fixLaravelPermissions(projectPath, userName);
+      await fixLaravelPermissions(projectPath);
 
       // *** CORREÇÃO ESPECÍFICA PARA SQLITE ***
       if (await isSQLiteProject(projectPath)) {
@@ -185,6 +185,17 @@ const create = async () => {
     console.log('Iniciando os containers...');
     await startContainers(projectPath, projectUrl, composeProjectName, projectType);
 
+    // Configura permissões dentro do container
+    if (projectType === 'laravel') {
+      console.log('🔧 Configurando permissões dentro do container...');
+      try {
+        execSync(`docker-compose -f "${path.join(projectPath, 'docker-compose.yml')}" exec -T phpfpm chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache`, { stdio: 'inherit' });
+        console.log('✅ Permissões do container configuradas com sucesso!');
+      } catch (error) {
+        console.warn('⚠️ Aviso: Não foi possível configurar as permissões no container. Isso pode ser feito manualmente mais tarde.');
+      }
+    }
+
   } catch (error) {
     console.error('Erro ao criar projeto:', error.message);
     process.exit(1);
@@ -199,18 +210,18 @@ const create = async () => {
 
 async function fixLaravelPermissions(projectPath) {
   try {
-    console.log('🔧 Aplicando permissões 777 em database e storage...');
-
-    const databasePath = path.join(projectPath, 'database');
-    const storagePath = path.join(projectPath, 'storage');
-
-    execSync(`sudo chmod -R 777 "${databasePath}"`, { stdio: 'inherit' });
-    execSync(`sudo chmod -R 777 "${storagePath}"`, { stdio: 'inherit' });
-
+    console.log('🔧 Aplicando permissões...');
+    
+    // Aplica chmod 777 nos diretórios database e storage
+    execSync(`chmod -R 777 "${path.join(projectPath, 'database')}" "${path.join(projectPath, 'storage')}"`, { stdio: 'inherit' });
+    
     console.log('✅ Permissões aplicadas com sucesso!');
   } catch (error) {
-    console.error('❌ Erro ao aplicar permissões:', error.message);
-    throw error;
+    console.error('\n❌ Erro ao aplicar permissões automaticamente.');
+    console.log('\n👉 Para corrigir manualmente, execute o seguinte comando:');
+    console.log(`\nsudo chmod -R 777 "${projectPath}/database" "${projectPath}/storage"`);
+    console.log('\nVocê pode copiar e colar o comando acima no terminal.');
+    process.exit(1);
   }
 }
 // async function fixLaravelPermissions(projectPath, userName) {
