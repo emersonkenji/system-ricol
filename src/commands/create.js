@@ -120,7 +120,7 @@ const create = async () => {
 
       // Corrige permissões do WordPress
       console.log('Configurando permissões WordPress...');
-      execSync(`chmod -R 775 "${projectPath}"`);
+      execSync(`chmod -R 777 "${projectPath}"`);
       execSync(`find "${projectPath}" -type d -exec chmod 755 {} \\;`);
       execSync(`find "${projectPath}" -type f -exec chmod 644 {} \\;`);
 
@@ -166,9 +166,15 @@ const create = async () => {
       await configureLaravelProject(projectPath);
       await configureEnv(projectPath, projectUrl, dbName);
 
-      // *** CORREÇÃO DE PERMISSÕES LARAVEL ***
       console.log('Configurando permissões Laravel...');
-      await fixLaravelPermissions(projectPath);
+      execSync(`chmod -R 775 "${projectPath}"`);
+      execSync(`chmod -R 777 "${path.join(projectPath, 'database')}" "${path.join(projectPath, 'storage')}"`);
+      execSync(`find "${projectPath}" -type d -exec chmod 755 {} \\;`);
+      execSync(`find "${projectPath}" -type f -exec chmod 644 {} \\;`);
+
+      // *** CORREÇÃO DE PERMISSÕES LARAVEL ***
+      // console.log('Configurando permissões Laravel...');
+      // await fixLaravelPermissions(projectPath);
 
       // *** CORREÇÃO ESPECÍFICA PARA SQLITE ***
       if (await isSQLiteProject(projectPath)) {
@@ -213,6 +219,7 @@ async function fixLaravelPermissions(projectPath) {
     console.log('🔧 Aplicando permissões...');
     
     // Aplica chmod 777 nos diretórios database e storage
+    // execSync(`chmod -R 777 "${path.join(projectPath, 'database')}" "${path.join(projectPath, 'storage')}"`, { stdio: 'inherit' });
     execSync(`chmod -R 777 "${path.join(projectPath, 'database')}" "${path.join(projectPath, 'storage')}"`, { stdio: 'inherit' });
     
     console.log('✅ Permissões aplicadas com sucesso!');
